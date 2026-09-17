@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+admin/node_modules/
+backend/node_modules/
+
+# Build
+dist/
+frontend/dist/
+admin/dist/
+build/
+
+# Environment
+.env
+backend/.env
+frontend/.env
+admin/.env
+*.local
+
+# Uploads (keep folder, ignore files)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs & OS
+logs/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage
+coverage/
