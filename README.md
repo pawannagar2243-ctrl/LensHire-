@@ -5,15 +5,14 @@ Full-stack camera rental and booking platform with a customer website, admin das
 ## Stack
 
 - **Frontend:** React.js, Bootstrap 5, React Router, Axios, Bootstrap Icons
-- **Admin:** React.js, Bootstrap 5, React Router, Axios, Recharts
+- **Admin:** React.js, Bootstrap 5, React Router, Axios, Recharts (embedded in the frontend)
 - **Backend:** Node.js, Express.js, MongoDB, JWT, bcrypt, Multer
 
 ## Project Structure
 
 ```text
 camera-booking/
-├── frontend/     # Customer website (port 5173)
-├── admin/        # Admin panel (port 5174)
+├── frontend/     # Customer website + admin panel (port 5173)
 ├── backend/      # API server (port 5000)
 ├── package.json
 └── README.md
@@ -36,7 +35,7 @@ npm run install:all
 # Seed demo data (admin + sample cameras)
 npm run seed
 
-# Start backend + frontend + admin together
+# Start backend + frontend together
 npm run dev
 ```
 
@@ -44,8 +43,7 @@ npm run dev
 
 ```bash
 npm run backend    # API on http://localhost:5000
-npm run frontend   # Customer site on http://localhost:5173
-npm run admin      # Admin panel on http://localhost:5174
+npm run frontend   # Customer site + admin panel on http://localhost:5173
 npm run seed       # Seed MongoDB with demo data
 ```
 
@@ -77,10 +75,9 @@ MONGODB_URI=mongodb://127.0.0.1:27017/camera-booking
 JWT_SECRET=your_secret
 JWT_EXPIRE=7d
 CLIENT_URL=http://localhost:5173
-ADMIN_URL=http://localhost:5174
 ```
 
-Frontend/Admin use:
+Frontend uses:
 
 ```env
 VITE_API_URL=http://localhost:5000/api
@@ -91,6 +88,7 @@ VITE_API_URL=http://localhost:5000/api
 - JWT auth with user/admin roles
 - Camera listing, filters, details, reviews
 - Booking with overlap prevention
+- Admin panel at http://localhost:5173/admin
 - Admin dashboard with charts
 - Camera, category, user, and booking management
 - Modular payment model (Razorpay-ready)
