@@ -1,4 +1,45 @@
+# Dependency directories (Sabse heavy files)
 node_modules/
+jspm_packages/
+
+# Environment variables (Security - Very Important)
 .env
-.env.*
-!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.sample
+
+# Build outputs
+dist/
+build/
+.cache/
+out/
+
+# Debug logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / Editor folders
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Uploaded service documents (local storage)
+uploads/
