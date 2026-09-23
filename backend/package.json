@@ -15,6 +15,9 @@
   ],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": "22.x"
+  },
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^2.4.3",
