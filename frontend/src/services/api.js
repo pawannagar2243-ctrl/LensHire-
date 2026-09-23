@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://lenshire.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -25,7 +25,7 @@ api.interceptors.response.use(
 export const getImageUrl = (path) => {
   if (!path) return 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600';
   if (path.startsWith('http')) return path;
-  const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+  const base = (import.meta.env.VITE_API_URL || 'https://lenshire.onrender.com/api').replace(/\/api$/, '');
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
