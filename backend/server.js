@@ -24,7 +24,6 @@ app.use(
       process.env.CLIENT_URL,
       process.env.ADMIN_URL,
       'https://lenshire-1.onrender.com',
-      'https://lenshire-1.onrender.com',
     ].filter(Boolean),
     credentials: true,
   })
