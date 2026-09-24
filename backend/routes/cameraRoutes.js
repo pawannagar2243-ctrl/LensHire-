@@ -12,8 +12,22 @@ const upload = require('../middleware/upload');
 
 router.get('/', getCameras);
 router.get('/:id', getCamera);
-router.post('/', authMiddleware, adminMiddleware, upload.array('images', 8), createCamera);
-router.put('/:id', authMiddleware, adminMiddleware, upload.array('images', 8), updateCamera);
+router.post(
+  '/',
+  authMiddleware,
+  adminMiddleware,
+  upload.ensureCloudinaryConfig,
+  upload.array('images', 8),
+  createCamera
+);
+router.put(
+  '/:id',
+  authMiddleware,
+  adminMiddleware,
+  upload.ensureCloudinaryConfig,
+  upload.array('images', 8),
+  updateCamera
+);
 router.delete('/:id', authMiddleware, adminMiddleware, deleteCamera);
 
 module.exports = router;

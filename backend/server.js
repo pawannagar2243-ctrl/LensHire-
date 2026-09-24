@@ -23,6 +23,8 @@ app.use(
     origin: [
       process.env.CLIENT_URL,
       process.env.ADMIN_URL,
+      'https://lenshire-1.onrender.com',
+      'https://lenshire.onrender.com',
       'http://localhost:5173',
       'http://localhost:5174',
     ].filter(Boolean),
@@ -83,9 +85,17 @@ const ensureDefaultAdmins = async () => {
 
     for (const account of defaults) {
       const exists = await User.findOne({ email: account.email.toLowerCase() });
+
       if (!exists) {
         await User.create(account);
         console.log(`Created default ${account.role} account: ${account.email}`);
+        continue;
+      }
+
+      if (exists.role !== account.role) {
+        exists.role = account.role;
+        await exists.save();
+        console.log(`Updated ${account.email} role to ${account.role}`);
       }
     }
   } catch (error) {

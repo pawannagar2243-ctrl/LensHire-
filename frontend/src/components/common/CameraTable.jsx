@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { adminPath } from '../../services/adminApi';
 import { formatCurrency, getImageUrl } from '../../services/api';
 
 export default function CameraTable({ cameras, onDelete }) {
@@ -69,7 +70,7 @@ export default function CameraTable({ cameras, onDelete }) {
                 )}
               </td>
               <td className="text-end">
-                <Link to={`/cameras/${cam._id}/edit`} className="btn btn-sm btn-outline-primary me-1">
+                <Link to={adminPath(`/cameras/${cam._id}/edit`)} className="btn btn-sm btn-outline-primary me-1">
                   <i className="bi bi-pencil" />
                 </Link>
                 <button

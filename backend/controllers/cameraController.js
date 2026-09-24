@@ -1,4 +1,47 @@
 const Camera = require('../models/Camera');
+const cloudinary = require('../config/cloudinary');
+
+const isCloudinaryUrl = (url = '') => /^https?:\/\/[a-z0-9-]+\.cloudinary\.com\//i.test(url);
+
+const getCloudinaryPublicId = (url = '') => {
+  if (!isCloudinaryUrl(url)) return null;
+
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    const uploadIndex = segments.indexOf('upload');
+
+    if (uploadIndex === -1 || uploadIndex + 2 >= segments.length) {
+      return null;
+    }
+
+    const publicId = segments.slice(uploadIndex + 2).join('/');
+    return publicId.replace(/\.[^/.]+$/, '');
+  } catch (error) {
+    return null;
+  }
+};
+
+const deleteCloudinaryImages = async (images = []) => {
+  if (!Array.isArray(images) || !images.length) return [];
+
+  const publicIds = images
+    .map(getCloudinaryPublicId)
+    .filter(Boolean);
+
+  if (!publicIds.length) return [];
+
+  return Promise.all(
+    publicIds.map(async (publicId) => {
+      try {
+        return await cloudinary.uploader.destroy(publicId, { invalidate: true });
+      } catch (error) {
+        console.error('Cloudinary delete failed:', error.message || error);
+        return null;
+      }
+    })
+  );
+};
 
 // @desc    Get all cameras with filters
 // @route   GET /api/cameras
@@ -119,7 +162,7 @@ exports.createCamera = async (req, res) => {
     }
 
     if (req.files && req.files.length) {
-      data.images = req.files.map((f) => `/uploads/${f.filename}`);
+      data.images = req.files.map((f) => f.path);
     } else if (typeof data.images === 'string') {
       try {
         data.images = JSON.parse(data.images);
@@ -158,8 +201,22 @@ exports.updateCamera = async (req, res) => {
     }
 
     if (req.files && req.files.length) {
-      const newImages = req.files.map((f) => `/uploads/${f.filename}`);
-      data.images = [...(camera.images || []), ...newImages];
+      const newImages = req.files.map((f) => f.path);
+      const removeUrls = Array.isArray(req.body.removeImageUrls)
+        ? req.body.removeImageUrls
+        : req.body.removeImageUrls
+          ? [req.body.removeImageUrls]
+          : [];
+
+      const existingImages = (camera.images || []).filter((url) => !removeUrls.includes(url));
+      data.images = [...existingImages, ...newImages];
+    }
+
+    if (Array.isArray(req.body.removeImageUrls) || req.body.removeImageUrls) {
+      const removeUrls = Array.isArray(req.body.removeImageUrls)
+        ? req.body.removeImageUrls
+        : [req.body.removeImageUrls];
+      await deleteCloudinaryImages(removeUrls.filter((url) => isCloudinaryUrl(url)));
     }
 
     Object.assign(camera, data);
@@ -180,9 +237,12 @@ exports.deleteCamera = async (req, res) => {
     if (!camera) {
       return res.status(404).json({ success: false, message: 'Camera not found' });
     }
+
+    await deleteCloudinaryImages(camera.images || []);
     await camera.deleteOne();
     res.json({ success: true, message: 'Camera deleted' });
   } catch (error) {
+    console.error('Camera delete error:', error.message || error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

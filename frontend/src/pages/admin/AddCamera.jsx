@@ -16,6 +16,7 @@ export default function CameraForm() {
   const [error, setError] = useState('');
   const [existingImages, setExistingImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [specs, setSpecs] = useState([{ ...emptySpec }]);
 
   const [form, setForm] = useState({
@@ -84,6 +85,28 @@ export default function CameraForm() {
   const addSpec = () => setSpecs((prev) => [...prev, { ...emptySpec }]);
   const removeSpec = (index) => setSpecs((prev) => prev.filter((_, i) => i !== index));
 
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach((src) => URL.revokeObjectURL(src));
+    };
+  }, [imagePreviews]);
+
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    const maxAllowed = 8;
+    const totalImages = existingImages.length + files.length;
+
+    if (files.length > maxAllowed || totalImages > maxAllowed) {
+      setError(`You can upload up to ${maxAllowed} images per camera.`);
+      e.target.value = '';
+      return;
+    }
+
+    setError('');
+    setImageFiles(files);
+    setImagePreviews(files.map((file) => URL.createObjectURL(file)));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -94,6 +117,12 @@ export default function CameraForm() {
       specs.forEach(({ key, value }) => {
         if (key.trim()) specifications[key.trim()] = value;
       });
+
+      if ((existingImages.length || 0) + imageFiles.length > 8) {
+        setError('You can upload up to 8 images per camera.');
+        setSaving(false);
+        return;
+      }
 
       const fd = new FormData();
       fd.append('name', form.name.trim());
@@ -265,14 +294,23 @@ export default function CameraForm() {
                 className="form-control"
                 accept="image/*"
                 multiple
-                onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+                onChange={handleImageSelect}
               />
-              {existingImages.length > 0 && (
+              {(existingImages.length > 0 || imagePreviews.length > 0) && (
                 <div className="d-flex flex-wrap gap-2 mt-2">
                   {existingImages.map((img) => (
                     <img
                       key={img}
                       src={getImageUrl(img)}
+                      alt=""
+                      className="rounded border"
+                      style={{ width: 72, height: 72, objectFit: 'cover' }}
+                    />
+                  ))}
+                  {imagePreviews.map((src) => (
+                    <img
+                      key={src}
+                      src={src}
                       alt=""
                       className="rounded border"
                       style={{ width: 72, height: 72, objectFit: 'cover' }}

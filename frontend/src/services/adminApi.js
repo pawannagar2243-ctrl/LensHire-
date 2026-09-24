@@ -36,8 +36,14 @@ api.interceptors.response.use(
 );
 
 export const getImageUrl = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
+  if (!path || typeof path !== 'string') {
+    return 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600';
+  }
+
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
   const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 };

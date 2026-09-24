@@ -1,32 +1,58 @@
-const path = require('path');
 const multer = require('multer');
-const fs = require('fs');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('../config/cloudinary');
 
-const uploadDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+const ensureCloudinaryConfig = (_req, _res, next) => {
+  const missing = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].filter(
+    (key) => !process.env[key]?.trim()
+  );
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${unique}${path.extname(file.originalname)}`);
+  if (missing.length) {
+    return next(
+      new Error(
+        `Cloudinary configuration missing. Set ${missing.join(', ')} in backend environment variables.`
+      )
+    );
+  }
+
+  next();
+};
+
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'lenshire/cameras',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    transformation: [
+      {
+        quality: 'auto',
+        fetch_format: 'auto',
+        width: 1200,
+        height: 1200,
+        crop: 'limit',
+      },
+    ],
   },
 });
 
 const fileFilter = (_req, file, cb) => {
-  const allowed = /jpeg|jpg|png|webp|gif/;
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-  const mime = allowed.test(file.mimetype);
-  if (ext && mime) cb(null, true);
-  else cb(new Error('Only image files are allowed'));
+  const allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  const ext = file.originalname.split('.').pop()?.toLowerCase();
+
+  if (ext && allowed.includes(ext)) {
+    cb(null, true);
+    return;
+  }
+
+  cb(new Error('Invalid image format. Allowed: jpg, jpeg, png, webp, gif'));
 };
 
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 8 },
 });
+
+upload.ensureCloudinaryConfig = ensureCloudinaryConfig;
 
 module.exports = upload;
