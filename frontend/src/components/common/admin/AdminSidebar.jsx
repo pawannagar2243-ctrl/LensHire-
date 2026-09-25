@@ -47,7 +47,7 @@ export default function AdminSidebar({ open, onClose }) {
             type="button"
             className="btn btn-warning btn-sm w-100"
             onClick={() => {
-              window.open('/', '_blank', 'noopener,noreferrer');
+              window.open('/',  'noopener,noreferrer');
               onClose?.();
             }}
           >

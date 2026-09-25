@@ -31,7 +31,7 @@ export const getImageUrl = (path) => {
     return path;
   }
 
-  const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+  const base = (import.meta.env.VITE_API_URL || 'https://lenshire.onrender.com/api').replace(/\/api$/, '');
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 };
 

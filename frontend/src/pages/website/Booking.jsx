@@ -29,7 +29,7 @@ const BookingPage = () => {
     phone: '',
     address: '',
     notes: '',
-    paymentMethod: 'phonepe',
+    paymentMethod: 'cash',
   });
 
   useEffect(() => {
@@ -70,11 +70,11 @@ const BookingPage = () => {
   );
 
   const paymentLink = useMemo(() => {
-    if (!['phonepe', 'upi', 'paytm'].includes(form.paymentMethod) || !totalAmount) return '';
+    if (!['online', 'upi'].includes(form.paymentMethod) || !totalAmount) return '';
 
-    const upiId = form.paymentMethod === 'paytm' ? paytmUpiId : phonePeUpiId;
+    const upiId = phonePeUpiId;
     return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent('Camera Booking')}&am=${Number(totalAmount).toFixed(2)}&cu=INR`;
-  }, [form.paymentMethod, totalAmount, phonePeUpiId, paytmUpiId]);
+  }, [form.paymentMethod, totalAmount, phonePeUpiId]);
 
   const upiQrUrl = useMemo(() => {
     if (!paymentLink) return '';
@@ -105,6 +105,72 @@ const BookingPage = () => {
     });
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  const handleInstantPayment = async () => {
+    if (!form.startDate || !form.endDate) {
+      toast.error('Please select dates');
+      return;
+    }
+    if (totalDays < 1) {
+      toast.error('End date must be on or after start date');
+      return;
+    }
+    if (!form.name || !form.email || !form.phone) {
+      toast.error('Customer details are required');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const { data } = await api.post('/bookings', {
+        cameraId,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        quantity: Number(form.quantity),
+        customerDetails: {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+        },
+        notes: form.notes,
+      });
+
+      try {
+        const paymentResponse = await api.post('/payments', {
+          bookingId: data.booking._id,
+          amount: totalAmount,
+          paymentMethod: form.paymentMethod,
+        });
+
+        if (paymentResponse?.data?.payment?._id) {
+          await api.put(`/payments/${paymentResponse.data.payment._id}/confirm`, {
+            transactionId: `UPI-${Date.now()}`,
+            gatewayResponse: {
+              paymentMethod: form.paymentMethod,
+              success: true,
+            },
+          });
+        }
+      } catch (paymentErr) {
+        console.error('Instant payment confirmation failed:', paymentErr);
+      }
+
+      if (paymentLink) {
+        toast.success('Booking created successfully. UPI payment is being processed.');
+        window.location.href = paymentLink;
+        return;
+      }
+
+      toast.success('Booking created successfully');
+      navigate('/my-bookings');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Booking failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -149,92 +215,20 @@ const BookingPage = () => {
         toast.warning('Booking created. Payment option was saved but payment entry could not be created.');
       }
 
-      if (form.paymentMethod === 'card') {
-        if (paymentResponse?.data?.payment?._id) {
-          try {
-            await api.put(`/payments/${paymentResponse.data.payment._id}/confirm`, {
-              transactionId: `CARD-${Date.now()}`,
-              gatewayResponse: {
-                paymentMethod: 'card',
-                success: true,
-              },
-            });
-            toast.success('Booking created successfully. Card payment confirmed.');
-            navigate('/my-bookings');
-            return data;
-          } catch (confirmErr) {
-            toast.error(confirmErr.response?.data?.message || 'Card payment confirmation failed');
-            navigate('/my-bookings');
-            return data;
-          }
-        }
-
-        toast.success('Booking created successfully');
+      if (form.paymentMethod === 'cash') {
+        toast.success('Booking created successfully. Payment will be collected on delivery.');
         navigate('/my-bookings');
         return data;
       }
 
-      if (form.paymentMethod === 'razorpay') {
-        const gateway = paymentResponse?.data?.gateway;
-        const razorpayKeyId = gateway?.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
-
-        if (!gateway?.ready || !razorpayKeyId) {
-          toast.error(gateway?.note || 'Razorpay is not configured yet. Please add Razorpay keys in the backend environment.');
+      if (['online', 'upi'].includes(form.paymentMethod)) {
+        const paymentName = form.paymentMethod === 'upi' ? 'UPI' : 'online';
+        toast.success(`Booking created successfully. ${paymentName} payment is processing.`);
+        if (paymentLink) {
+          window.location.href = paymentLink;
+        } else {
           navigate('/my-bookings');
-          return data;
         }
-
-        try {
-          await loadRazorpayScript();
-
-          const razorpay = new window.Razorpay({
-            key: razorpayKeyId,
-            amount: gateway.amount,
-            currency: gateway.currency || 'INR',
-            name: 'Camera Booking',
-            description: `Payment for ${camera.name}`,
-            order_id: gateway.orderId,
-            prefill: {
-              name: form.name,
-              email: form.email,
-              contact: form.phone,
-            },
-            theme: {
-              color: '#f4b400',
-            },
-            handler: async function (response) {
-              try {
-                await api.put(`/payments/${paymentResponse.data.payment._id}/confirm`, {
-                  transactionId: response.razorpay_payment_id,
-                  gatewayResponse: response,
-                });
-                toast.success('Razorpay payment successful');
-                navigate('/my-bookings');
-              } catch (confirmErr) {
-                toast.error(confirmErr.response?.data?.message || 'Payment confirmation failed');
-                navigate('/my-bookings');
-              }
-            },
-            modal: {
-              ondismiss: () => {
-                toast.info('Razorpay checkout was closed.');
-              },
-            },
-          });
-
-          razorpay.open();
-          return data;
-        } catch (scriptErr) {
-          toast.error('Razorpay checkout could not be loaded.');
-          navigate('/my-bookings');
-          return data;
-        }
-      }
-
-      if (['phonepe', 'upi', 'paytm'].includes(form.paymentMethod) && paymentLink) {
-        const paymentName = form.paymentMethod === 'paytm' ? 'Paytm' : 'PhonePe';
-        toast.success(`Booking created successfully. ${paymentName} is opening...`);
-        window.location.href = paymentLink;
         return data;
       }
 
@@ -399,10 +393,9 @@ const BookingPage = () => {
                 <label className="form-label fw-semibold">Payment Method</label>
                 <div className="row g-2">
                   {[
-                    { value: 'cash', label: 'Cash' },
-                    { value: 'phonepe', label: 'PhonePe' },
-                    { value: 'paytm', label: 'Paytm' },
-                    { value: 'card', label: 'Card' }
+                    { value: 'cash', label: 'Cash on Delivery' },
+                    { value: 'online', label: 'Cash on Forward (Online)' },
+                    { value: 'upi', label: 'UPI' },
                   ].map((option) => (
                     <div className="col-md-6 col-xl-4" key={option.value}>
                       <label className="border rounded p-2 d-flex align-items-center gap-2 h-100 mb-0">
@@ -420,94 +413,49 @@ const BookingPage = () => {
                 </div>
               </div>
 
-              {['phonepe', 'paytm', 'upi'].includes(form.paymentMethod) && (
+              {['online', 'upi'].includes(form.paymentMethod) && (
                 <div className="alert alert-info border-0 shadow-sm mb-4">
                   <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
                     <div>
                       <h6 className="mb-1">
-                        {form.paymentMethod === 'paytm'
-                          ? 'Pay with Paytm'
-                          : form.paymentMethod === 'upi'
-                            ? 'Pay with UPI'
-                            : 'Pay with PhonePe'}
+                        {form.paymentMethod === 'upi' ? 'Pay with UPI' : 'Pay Online'}
                       </h6>
                       <small className="text-muted">
-                        {form.paymentMethod === 'paytm'
-                          ? `Scan the QR code or tap the Paytm button below to pay ${formatCurrency(totalAmount)}.`
-                          : `Scan the QR code or tap the ${form.paymentMethod === 'upi' ? 'UPI' : 'PhonePe'} button below to pay ${formatCurrency(totalAmount)}.`}
+                        {form.paymentMethod === 'upi'
+                          ? `Scan the QR code or tap the UPI button below to pay ${formatCurrency(totalAmount)}.`
+                          : `Pay online for cash-on-forward booking of ${formatCurrency(totalAmount)}.`}
                       </small>
                     </div>
                     <div className="text-end">
-                      <small className="d-block text-muted">
-                        {form.paymentMethod === 'paytm' ? 'Paytm UPI ID' : 'UPI ID'}
-                      </small>
-                     
+                      <small className="d-block text-muted">UPI ID</small>
                     </div>
                   </div>
                   {upiQrUrl && (
                     <div className="mt-3 d-flex flex-column flex-md-row align-items-center gap-3 justify-content-center justify-content-md-start">
                       <img
                         src={upiQrUrl}
-                        alt={form.paymentMethod === 'paytm' ? 'Paytm QR code' : 'UPI QR code'}
+                        alt="UPI QR code"
                         className="rounded border bg-white p-2"
                         style={{ width: 220, height: 220, objectFit: 'contain' }}
                       />
-                      <a
-                        href={paymentLink}
+                      <button
+                        type="button"
                         className="btn btn-primary"
-                        target="_blank"
-                        rel="noreferrer"
+                        disabled={submitting}
+                        onClick={handleInstantPayment}
                       >
-                        {form.paymentMethod === 'paytm' ? 'Pay via Paytm' : 'Pay via UPI'}
-                      </a>
+                        {submitting ? 'Booking...' : 'Pay via UPI'}
+                      </button>
                     </div>
                   )}
                 </div>
               )}
 
-              {form.paymentMethod === 'card' && (
-                <div className="alert alert-secondary border-0 shadow-sm mb-4">
-                  <h6 className="mb-3">Card Payment</h6>
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label">Card Number</label>
-                      <input type="text" className="form-control" placeholder="1234 5678 9012 3456" />
-                    </div>
-                    <div className="col-md-3">
-                      <label className="form-label">Expiry</label>
-                      <input type="text" className="form-control" placeholder="MM/YY" />
-                    </div>
-                    <div className="col-md-3">
-                      <label className="form-label">CVV</label>
-                      <input type="text" className="form-control" placeholder="123" />
-                    </div>
-                  </div>
-                  <small className="text-muted d-block mt-2">
-                    Card details are captured in-browser for demo checkout flow.
-                  </small>
-                </div>
+              {!['online', 'upi'].includes(form.paymentMethod) && (
+                <button type="submit" className="btn btn-warning btn-lg px-4" disabled={submitting}>
+                  {submitting ? 'Confirming...' : 'Confirm Booking'}
+                </button>
               )}
-
-              {form.paymentMethod === 'razorpay' && (
-                <div className="alert alert-warning border-0 shadow-sm mb-4">
-                  <h6 className="mb-1">Razorpay Payment</h6>
-                  <small className="text-muted d-block mb-3">
-                    Pay {formatCurrency(totalAmount)} using Razorpay checkout.
-                  </small>
-                  <div className="d-flex flex-wrap gap-2">
-                    <button type="button" className="btn btn-primary">
-                      Open Razorpay Checkout
-                    </button>
-                    <small className="text-muted align-self-center">
-                      Add your Razorpay key and backend verification to enable live payments.
-                    </small>
-                  </div>
-                </div>
-              )}
-
-              <button type="submit" className="btn btn-warning btn-lg px-4" disabled={submitting}>
-                {submitting ? 'Confirming...' : 'Confirm Booking'}
-              </button>
             </div>
           </form>
         </div>

@@ -85,17 +85,9 @@ const ensureDefaultAdmins = async () => {
 
     for (const account of defaults) {
       const exists = await User.findOne({ email: account.email.toLowerCase() });
-
       if (!exists) {
         await User.create(account);
         console.log(`Created default ${account.role} account: ${account.email}`);
-        continue;
-      }
-
-      if (exists.role !== account.role) {
-        exists.role = account.role;
-        await exists.save();
-        console.log(`Updated ${account.email} role to ${account.role}`);
       }
     }
   } catch (error) {

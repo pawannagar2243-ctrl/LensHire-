@@ -50,9 +50,8 @@ const fileFilter = (_req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024, files: 8 },
+  limits: { fileSize: 20 * 1024 * 1024, files: 8 },
 });
 
 upload.ensureCloudinaryConfig = ensureCloudinaryConfig;
-
 module.exports = upload;

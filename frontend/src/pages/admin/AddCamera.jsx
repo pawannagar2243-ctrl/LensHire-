@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api, { adminPath, getImageUrl } from '../../services/adminApi';
 import Loader from '../../components/common/admin/Loader';
+import { mergeUniqueFiles } from '../../utils/cameraImageSelection';
 
 const emptySpec = { key: '', value: '' };
 
@@ -15,6 +16,7 @@ export default function CameraForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [existingImages, setExistingImages] = useState([]);
+  const [removedImageUrls, setRemovedImageUrls] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [specs, setSpecs] = useState([{ ...emptySpec }]);
@@ -58,6 +60,7 @@ export default function CameraForm() {
           stock: cam.stock ?? 1,
         });
         setExistingImages(cam.images || []);
+        setRemovedImageUrls([]);
 
         const specObj =
           cam.specifications instanceof Map
@@ -85,6 +88,8 @@ export default function CameraForm() {
   const addSpec = () => setSpecs((prev) => [...prev, { ...emptySpec }]);
   const removeSpec = (index) => setSpecs((prev) => prev.filter((_, i) => i !== index));
 
+  const visibleExistingImages = existingImages.filter((img) => !removedImageUrls.includes(img));
+
   useEffect(() => {
     return () => {
       imagePreviews.forEach((src) => URL.revokeObjectURL(src));
@@ -94,17 +99,35 @@ export default function CameraForm() {
   const handleImageSelect = (e) => {
     const files = Array.from(e.target.files || []);
     const maxAllowed = 8;
-    const totalImages = existingImages.length + files.length;
 
-    if (files.length > maxAllowed || totalImages > maxAllowed) {
+    if (!files.length) return;
+
+    const nextFiles = mergeUniqueFiles(imageFiles, files, maxAllowed);
+    const totalImages = visibleExistingImages.length + nextFiles.length;
+
+    if (totalImages > maxAllowed) {
       setError(`You can upload up to ${maxAllowed} images per camera.`);
       e.target.value = '';
       return;
     }
 
     setError('');
-    setImageFiles(files);
-    setImagePreviews(files.map((file) => URL.createObjectURL(file)));
+    const preparedFiles = nextFiles.map((file) => {
+      if (!file._previewUrl) {
+        file._previewUrl = URL.createObjectURL(file);
+      }
+      return file;
+    });
+
+    setImageFiles(preparedFiles);
+    setImagePreviews(preparedFiles.map((file) => file._previewUrl));
+    e.target.value = '';
+  };
+
+  const toggleRemoveExistingImage = (url) => {
+    setRemovedImageUrls((prev) =>
+      prev.includes(url) ? prev.filter((item) => item !== url) : [...prev, url]
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -118,7 +141,8 @@ export default function CameraForm() {
         if (key.trim()) specifications[key.trim()] = value;
       });
 
-      if ((existingImages.length || 0) + imageFiles.length > 8) {
+      const remainingExistingImages = existingImages.filter((img) => !removedImageUrls.includes(img));
+      if ((remainingExistingImages.length || 0) + imageFiles.length > 8) {
         setError('You can upload up to 8 images per camera.');
         setSaving(false);
         return;
@@ -137,6 +161,7 @@ export default function CameraForm() {
       fd.append('stock', String(form.stock || 1));
       fd.append('specifications', JSON.stringify(specifications));
 
+      removedImageUrls.forEach((url) => fd.append('removeImageUrls', url));
       imageFiles.forEach((file) => fd.append('images', file));
 
       if (isEdit) {
@@ -296,16 +321,26 @@ export default function CameraForm() {
                 multiple
                 onChange={handleImageSelect}
               />
-              {(existingImages.length > 0 || imagePreviews.length > 0) && (
+              {(visibleExistingImages.length > 0 || imagePreviews.length > 0) && (
                 <div className="d-flex flex-wrap gap-2 mt-2">
-                  {existingImages.map((img) => (
-                    <img
-                      key={img}
-                      src={getImageUrl(img)}
-                      alt=""
-                      className="rounded border"
-                      style={{ width: 72, height: 72, objectFit: 'cover' }}
-                    />
+                  {visibleExistingImages.map((img) => (
+                    <div key={img} className="position-relative" style={{ width: 72, height: 72 }}>
+                      <img
+                        src={getImageUrl(img)}
+                        alt=""
+                        className="rounded border w-100 h-100"
+                        style={{ objectFit: 'cover' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger position-absolute top-0 end-0 p-1 lh-1"
+                        style={{ transform: 'translate(25%, -25%)' }}
+                        onClick={() => toggleRemoveExistingImage(img)}
+                        title="Remove image"
+                      >
+                        <i className="bi bi-x-lg" />
+                      </button>
+                    </div>
                   ))}
                   {imagePreviews.map((src) => (
                     <img

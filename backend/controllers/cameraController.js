@@ -10,14 +10,10 @@ const getCloudinaryPublicId = (url = '') => {
     const parsed = new URL(url);
     const segments = parsed.pathname.split('/').filter(Boolean);
     const uploadIndex = segments.indexOf('upload');
-
-    if (uploadIndex === -1 || uploadIndex + 2 >= segments.length) {
-      return null;
-    }
-
+    if (uploadIndex === -1 || uploadIndex + 2 >= segments.length) return null;
     const publicId = segments.slice(uploadIndex + 2).join('/');
     return publicId.replace(/\.[^/.]+$/, '');
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -25,10 +21,7 @@ const getCloudinaryPublicId = (url = '') => {
 const deleteCloudinaryImages = async (images = []) => {
   if (!Array.isArray(images) || !images.length) return [];
 
-  const publicIds = images
-    .map(getCloudinaryPublicId)
-    .filter(Boolean);
-
+  const publicIds = images.map(getCloudinaryPublicId).filter(Boolean);
   if (!publicIds.length) return [];
 
   return Promise.all(
@@ -195,28 +188,25 @@ exports.updateCamera = async (req, res) => {
       try {
         data.specifications = JSON.parse(data.specifications);
       } catch {
-        /* keep existing */
         delete data.specifications;
       }
     }
 
-    if (req.files && req.files.length) {
-      const newImages = req.files.map((f) => f.path);
-      const removeUrls = Array.isArray(req.body.removeImageUrls)
-        ? req.body.removeImageUrls
-        : req.body.removeImageUrls
-          ? [req.body.removeImageUrls]
-          : [];
+    const removeUrls = req.body.removeImageUrls
+      ? (Array.isArray(req.body.removeImageUrls)
+          ? req.body.removeImageUrls
+          : [req.body.removeImageUrls])
+      : [];
 
+    if (req.files && req.files.length || removeUrls.length) {
+      const newImages = req.files ? req.files.map((f) => f.path) : [];
       const existingImages = (camera.images || []).filter((url) => !removeUrls.includes(url));
       data.images = [...existingImages, ...newImages];
     }
 
-    if (Array.isArray(req.body.removeImageUrls) || req.body.removeImageUrls) {
-      const removeUrls = Array.isArray(req.body.removeImageUrls)
-        ? req.body.removeImageUrls
-        : [req.body.removeImageUrls];
-      await deleteCloudinaryImages(removeUrls.filter((url) => isCloudinaryUrl(url)));
+    if (removeUrls.length) {
+      const cloudinaryUrls = removeUrls.filter((url) => isCloudinaryUrl(url));
+      await deleteCloudinaryImages(cloudinaryUrls);
     }
 
     Object.assign(camera, data);

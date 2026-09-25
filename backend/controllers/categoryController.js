@@ -1,6 +1,19 @@
 const Category = require('../models/Category');
 const Camera = require('../models/Camera');
 
+const resolveUploadedImage = (file) => {
+  if (!file) return '';
+
+  if (typeof file.path === 'string' && file.path.trim()) return file.path;
+  if (typeof file.secure_url === 'string' && file.secure_url.trim()) return file.secure_url;
+  if (typeof file.url === 'string' && file.url.trim()) return file.url;
+  if (typeof file.filename === 'string' && file.filename.trim()) return `/uploads/${file.filename}`;
+
+  return '';
+};
+
+exports.resolveUploadedImage = resolveUploadedImage;
+
 exports.getCategories = async (req, res) => {
   try {
     const categories = await Category.find().sort({ name: 1 });
@@ -40,7 +53,7 @@ exports.createCategory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Category already exists' });
     }
 
-    const image = req.file ? `/uploads/${req.file.filename}` : req.body.image || '';
+    const image = resolveUploadedImage(req.file) || req.body.image || '';
     const category = await Category.create({ name, description, image });
 
     res.status(201).json({ success: true, message: 'Category created', category });
@@ -58,8 +71,11 @@ exports.updateCategory = async (req, res) => {
 
     if (req.body.name) category.name = req.body.name;
     if (req.body.description !== undefined) category.description = req.body.description;
-    if (req.file) category.image = `/uploads/${req.file.filename}`;
-    else if (req.body.image !== undefined) category.image = req.body.image;
+    if (req.file) {
+      category.image = resolveUploadedImage(req.file);
+    } else if (req.body.image !== undefined) {
+      category.image = req.body.image;
+    }
 
     await category.save();
     res.json({ success: true, message: 'Category updated', category });
