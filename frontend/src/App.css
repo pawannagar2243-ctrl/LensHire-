@@ -45,8 +45,201 @@ a {
   box-shadow: 0 0.5rem 1.25rem rgba(15, 23, 42, 0.1) !important;
 }
 
+.navbar {
+  min-height: 76px;
+  background: linear-gradient(135deg, #0f172a 0%, #111827 100%) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.navbar .navbar-brand {
+  letter-spacing: 0.02em;
+  font-size: 1.4rem;
+}
+
+.navbar .nav-link {
+  color: rgba(255, 255, 255, 0.84) !important;
+  font-weight: 600;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link:focus,
 .navbar .nav-link.active {
-  color: #f59e0b !important;
+  color: #fbbf24 !important;
+}
+
+.navbar-toggler {
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.7rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.7) !important;
+}
+
+.navbar-toggler-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.mobile-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+  z-index: 1040;
+}
+
+.mobile-nav-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.mobile-nav-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(92vw, 420px);
+  height: 100vh;
+  background: #f3f3f3;
+  box-shadow: -16px 0 30px rgba(15, 23, 42, 0.18);
+  transform: translateX(105%);
+  transition: transform 0.28s ease;
+  z-index: 1050;
+  padding: 1rem 1rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.mobile-nav-panel.open {
+  transform: translateX(0);
+}
+
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.mobile-nav-header span {
+  font-size: 2.3rem;
+  font-weight: 800;
+  color: #1f2937;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.mobile-nav-close {
+  border: none;
+  background: transparent;
+  color: #1f2937;
+  font-size: 2.6rem;
+  line-height: 1;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.mobile-nav-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  padding-top: 0.1rem;
+}
+
+.mobile-nav-action {
+  border: 1.5px solid #1f2937;
+  background: transparent;
+  color: #1f2937;
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.45rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-decoration: none;
+  font-size: 0.72rem;
+  line-height: 1.1;
+  text-align: center;
+  min-height: 50px;
+}
+
+.mobile-nav-action i {
+  font-size: 1rem;
+}
+
+.mobile-nav-action-danger {
+  border-color: #d92121;
+  color: #d92121;
+  background: rgba(217, 33, 33, 0.04);
+}
+
+.mobile-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid rgba(17, 24, 39, 0.12);
+}
+
+.mobile-nav-list .nav-item {
+  width: 100%;
+}
+
+.mobile-nav-list .nav-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 1rem 0.2rem;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+  color: #111827;
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.mobile-nav-list .nav-link:hover,
+.mobile-nav-list .nav-link:focus {
+  background: rgba(17, 24, 39, 0.02);
+  color: #111827;
+}
+
+.mobile-nav-list .nav-link.active {
+  background: #d92121;
+  color: #ffffff;
+  border-radius: 0.45rem;
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+  margin-bottom: 0.2rem;
+  margin-top: 0.1rem;
+  box-shadow: 0 8px 16px rgba(217, 33, 33, 0.18);
+}
+
+.mobile-nav-list .nav-item:last-child .nav-link {
+  border-bottom: none;
+}
+
+@media (min-width: 992px) {
+  .mobile-nav-backdrop,
+  .mobile-nav-panel {
+    display: none !important;
+  }
 }
 
 .hero-section {
