@@ -81,7 +81,11 @@ Frontend uses:
 
 ```env
 VITE_API_URL=http://localhost:5000/api
+VITE_SITE_URL=https://your-live-domain.example
+VITE_SEO_IMAGE=https://your-live-domain.example/social-share.jpg
 ```
+
+Set `VITE_SITE_URL` to the production website origin before building. The frontend build then generates `robots.txt` and a sitemap containing the public site routes. `VITE_SEO_IMAGE` is optional and should point to a publicly accessible social sharing image. Route titles, descriptions, canonical URLs, Open Graph metadata, and no-index rules are managed by the frontend.
 
 ## Features
 

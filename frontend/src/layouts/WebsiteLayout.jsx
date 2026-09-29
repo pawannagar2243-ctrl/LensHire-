@@ -1,9 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/navbar/Navbar';
 import Footer from '../components/footer/Footer';
+import SEOManager from '../components/common/SEOManager';
 
 const WebsiteLayout = () => (
   <div className="d-flex flex-column min-vh-100">
+    <SEOManager />
     <Navbar />
     <main className="flex-grow-1">
       <Outlet />

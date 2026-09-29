@@ -64,10 +64,10 @@ const buildPhonePeGateway = ({ paymentId, amount }) => {
 
 exports.createPayment = async (req, res) => {
   try {
-    const { bookingId, amount, paymentMethod = 'other' } = req.body;
+    const { bookingId, paymentMethod = 'other' } = req.body;
 
-    if (!bookingId || amount == null) {
-      return res.status(400).json({ success: false, message: 'bookingId and amount are required' });
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: 'bookingId is required' });
     }
 
     const booking = await Booking.findById(bookingId);
@@ -79,24 +79,34 @@ exports.createPayment = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
+    const resolvedPaymentMethod = paymentMethod === 'online' ? 'razorpay' : paymentMethod;
+    const paymentAmount = Number(booking.totalAmount);
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid booking amount' });
+    }
+
+    if (resolvedPaymentMethod === 'razorpay' && (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Online payment is not configured. Please try another payment method.',
+      });
+    }
+
     const payment = await Payment.create({
       bookingId,
-      amount,
-      paymentMethod,
+      amount: paymentAmount,
+      paymentMethod: resolvedPaymentMethod,
       paymentStatus: 'Pending',
     });
 
-    booking.paymentId = payment._id;
-    await booking.save();
-
     const gateway = {
-      provider: paymentMethod,
+      provider: resolvedPaymentMethod,
       ready: false,
       note: 'Gateway not configured yet',
     };
 
-    if (paymentMethod === 'phonepe') {
-      const phonepeGateway = buildPhonePeGateway({ paymentId: payment._id.toString(), amount });
+    if (resolvedPaymentMethod === 'phonepe') {
+      const phonepeGateway = buildPhonePeGateway({ paymentId: payment._id.toString(), amount: paymentAmount });
 
       if (!phonepeGateway.ready) {
         gateway.note = phonepeGateway.note;
@@ -112,29 +122,19 @@ exports.createPayment = async (req, res) => {
       }
     }
 
-    if (paymentMethod === 'paytm') {
+    if (resolvedPaymentMethod === 'paytm') {
       gateway.note = 'Configure Paytm merchant credentials and Paytm payment API details to enable live Paytm checkout.';
     }
 
-    if (paymentMethod === 'razorpay') {
-      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-        return res.status(201).json({
-          success: true,
-          message: 'Payment initiated. Configure Razorpay keys to enable live checkout.',
-          payment,
-          gateway: {
-            ...gateway,
-            note: 'Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in the backend environment to enable Razorpay checkout.',
-          },
-        });
-      }
-
+    if (resolvedPaymentMethod === 'razorpay') {
       try {
         const order = await createRazorpayOrder({
-          amount,
+          amount: paymentAmount,
           receipt: payment._id.toString(),
         });
 
+        payment.gatewayResponse = { razorpayOrderId: order.id };
+        await payment.save();
         gateway.ready = true;
         gateway.keyId = process.env.RAZORPAY_KEY_ID;
         gateway.orderId = order.id;
@@ -142,6 +142,7 @@ exports.createPayment = async (req, res) => {
         gateway.currency = order.currency;
         gateway.note = 'Razorpay order created';
       } catch (error) {
+        await Payment.findByIdAndDelete(payment._id);
         return res.status(502).json({
           success: false,
           message: 'Failed to create Razorpay order',
@@ -150,6 +151,9 @@ exports.createPayment = async (req, res) => {
         });
       }
     }
+
+    booking.paymentId = payment._id;
+    await booking.save();
 
     res.status(201).json({
       success: true,
@@ -188,19 +192,24 @@ exports.confirmPayment = async (req, res) => {
     const razorpayPaymentId = gatewayResponse?.razorpay_payment_id || req.body.razorpay_payment_id;
     const phonepeSuccess = gatewayResponse?.success ?? req.body.success ?? false;
 
-    if (
-      payment.paymentMethod === 'razorpay' &&
-      process.env.RAZORPAY_KEY_SECRET &&
-      razorpaySignature &&
-      razorpayOrderId &&
-      razorpayPaymentId
-    ) {
+    if (payment.paymentMethod === 'razorpay') {
+      if (!process.env.RAZORPAY_KEY_SECRET || !razorpaySignature || !razorpayOrderId || !razorpayPaymentId) {
+        return res.status(400).json({ success: false, message: 'Razorpay payment verification details are required' });
+      }
+      if (payment.gatewayResponse?.razorpayOrderId !== razorpayOrderId) {
+        return res.status(400).json({ success: false, message: 'Razorpay order does not match this payment' });
+      }
+
       const expectedSignature = crypto
         .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
         .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-        .digest('hex');
+        .digest();
+      const receivedSignature = Buffer.from(razorpaySignature, 'hex');
 
-      if (expectedSignature !== razorpaySignature) {
+      if (
+        receivedSignature.length !== expectedSignature.length ||
+        !crypto.timingSafeEqual(expectedSignature, receivedSignature)
+      ) {
         return res.status(400).json({ success: false, message: 'Invalid Razorpay signature' });
       }
     }
@@ -213,7 +222,9 @@ exports.confirmPayment = async (req, res) => {
     }
 
     payment.paymentStatus = 'Paid';
-    payment.transactionId = transactionId || razorpayPaymentId || `TXN-${Date.now()}`;
+    payment.transactionId = payment.paymentMethod === 'razorpay'
+      ? razorpayPaymentId
+      : transactionId || `TXN-${Date.now()}`;
     payment.paidAt = new Date();
     if (gatewayResponse) payment.gatewayResponse = gatewayResponse;
     await payment.save();
@@ -225,6 +236,40 @@ exports.confirmPayment = async (req, res) => {
     });
 
     res.json({ success: true, message: 'Payment confirmed', payment });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.cancelPayment = async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id).populate('bookingId');
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    const booking = payment.bookingId;
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found for this payment' });
+    }
+
+    const isOwner = booking.user && booking.user.toString() === req.user._id.toString();
+    if (!isAdminRole(req.user.role) && !isOwner) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    if (payment.paymentStatus !== 'Pending') {
+      return res.status(400).json({ success: false, message: 'Only pending payments can be cancelled' });
+    }
+
+    payment.paymentStatus = 'Failed';
+    await payment.save();
+    if (booking.bookingStatus === 'Pending') {
+      booking.paymentStatus = 'Failed';
+      booking.bookingStatus = 'Cancelled';
+      await booking.save();
+    }
+
+    res.json({ success: true, message: 'Payment cancelled', payment });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

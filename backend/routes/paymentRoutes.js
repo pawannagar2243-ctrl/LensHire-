@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createPayment,
   confirmPayment,
+  cancelPayment,
   getPayment,
   getPayments,
 } = require('../controllers/paymentController');
@@ -12,5 +13,6 @@ router.post('/', authMiddleware, createPayment);
 router.get('/', authMiddleware, adminMiddleware, getPayments);
 router.get('/:id', authMiddleware, getPayment);
 router.put('/:id/confirm', authMiddleware, confirmPayment);
+router.put('/:id/cancel', authMiddleware, cancelPayment);
 
 module.exports = router;

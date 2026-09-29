@@ -49,6 +49,135 @@ a {
   color: #f59e0b !important;
 }
 
+.mobile-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.48);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.mobile-nav-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.mobile-nav-panel {
+  position: fixed;
+  z-index: 1050;
+  inset: 0 0 0 auto;
+  width: min(86vw, 360px);
+  padding: 1rem;
+  overflow-y: auto;
+  background: #f3f3f3;
+  box-shadow: -16px 0 30px rgba(15, 23, 42, 0.18);
+  transform: translateX(105%);
+  visibility: hidden;
+  transition: transform 0.28s ease, visibility 0.28s ease;
+}
+
+.mobile-nav-panel.open {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+}
+
+.mobile-nav-header span {
+  color: #1f2937;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.mobile-nav-close {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1f2937;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.mobile-nav-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}
+
+.mobile-nav-action {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.25rem;
+  border: 1px solid #30343b;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #252a31;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+}
+
+.mobile-nav-action-danger {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.mobile-nav-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #d8dce0;
+  list-style: none;
+}
+
+.mobile-nav-list .nav-item {
+  width: 100%;
+}
+
+.mobile-nav-list .nav-link {
+  display: block;
+  padding: 0.9rem 0.2rem;
+  border-bottom: 1px solid #d8dce0;
+  color: #252a31;
+  font-weight: 600;
+}
+
+.mobile-nav-list .nav-link.active {
+  margin: 0.15rem 0;
+  padding-left: 0.75rem;
+  border-radius: 0.25rem;
+  background: #dc3545;
+  color: #fff !important;
+}
+
+@media (min-width: 992px) {
+  .mobile-nav-backdrop,
+  .mobile-nav-panel {
+    display: none;
+  }
+}
+
 .hero-section {
   background-color: #0f172a;
 }

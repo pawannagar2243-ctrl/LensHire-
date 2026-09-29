@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import api, { getImageUrl, formatCurrency } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/common/Loader';
+import { setDocumentSEO } from '../../utils/seo';
 
 const CameraDetails = () => {
   const { id } = useParams();
@@ -36,6 +37,16 @@ const CameraDetails = () => {
   useEffect(() => {
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (!camera) return;
+    const cameraName = [camera.brand, camera.name, camera.model].filter(Boolean).join(' ');
+    const description = `${cameraName} available to rent from ${formatCurrency(camera.pricePerDay)} per day on LensHire. Check specifications, availability and booking details.`;
+    setDocumentSEO({
+      title: `Rent ${cameraName} | LensHire`,
+      description: description.slice(0, 160),
+    }, `/cameras/${id}`);
+  }, [camera, id]);
 
   const submitReview = async (e) => {
     e.preventDefault();
